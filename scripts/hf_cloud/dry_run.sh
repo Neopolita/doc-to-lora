@@ -16,8 +16,9 @@ echo "=========================================="
 
 bash install.sh
 
-# Upgrade mistral_common for Ministral-3-3B tokenizer v13 support
-uv pip install --upgrade mistral-common
+# Upgrade vLLM + mistral_common for Ministral-3-3B support
+# vLLM is only used for data generation, not training — safe to upgrade
+uv pip install --upgrade vllm mistral-common
 
 echo "=========================================="
 echo "Phase 1: Generate minimal self-gen data"
