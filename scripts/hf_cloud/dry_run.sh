@@ -51,15 +51,31 @@ print('Patched mistral.py: allow skip_special_tokens=False')
 PATCH
 
 echo "=========================================="
-echo "Phase 1: Generate minimal self-gen data"
+echo "Phase 0.5: Build compact datasets"
 echo "=========================================="
 
 # Use .venv/bin directly (not uv run) to prevent uv from
 # re-syncing the environment and reverting the mistral_common upgrade
+
+# Download SQuAD (needed by squad_compact and drop uses HF datasets directly)
+if [ ! -d "data/raw_datasets/squad" ]; then
+    echo "Downloading SQuAD..."
+    .venv/bin/huggingface-cli download --repo-type dataset rajpurkar/squad --local-dir data/raw_datasets/squad
+fi
+
+# Build compact datasets needed for dry run
+echo "Building compact datasets..."
+.venv/bin/python data/build_squad_compact.py
+.venv/bin/python data/build_drop_compact.py
+
+echo "=========================================="
+echo "Phase 1: Generate minimal self-gen data"
+echo "=========================================="
+
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --ds_names squad_compact drop_compact \
-    --split train --closed_qa_prob 1.0 --debug
+    --split train --closed_qa_prob 1.0 --max_new_tokens 512 --debug
 
 echo "=========================================="
 echo "Phase 2: Training (10 steps, 1 GPU)"

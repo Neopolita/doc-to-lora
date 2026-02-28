@@ -34,6 +34,12 @@ STOP_STRINGS = {
     "google/gemma-2-2b-it": ["<eos>", "<end_of_turn>"],
 }
 
+# Explicit EOS token IDs for models where vLLM may not auto-detect stop tokens
+# (e.g., when using tokenizer_mode="mistral")
+STOP_TOKEN_IDS = {
+    "mistralai/Ministral-3-3B-Instruct-2512": [2],  # </s>
+}
+
 MODEL_CTX_LEN = {
     "google/gemma-2-27b-it": 8192,
     "google/gemma-2-2b-it": 8192,
@@ -351,17 +357,21 @@ def execute_qa_generation(
     messages,
     k,
 ):
+    sampling_kwargs = dict(
+        max_tokens=args.max_new_tokens,
+        logprobs=k,
+        temperature=temp,
+        seed=42,
+        spaces_between_special_tokens=False,
+        skip_special_tokens=False,
+        include_stop_str_in_output=True,
+    )
+    stop_ids = STOP_TOKEN_IDS.get(args.vllm_model)
+    if stop_ids:
+        sampling_kwargs["stop_token_ids"] = stop_ids
     completions = llm.chat(
         messages,
-        sampling_params=SamplingParams(
-            max_tokens=args.max_new_tokens,
-            logprobs=k,
-            temperature=temp,
-            seed=42,
-            spaces_between_special_tokens=False,
-            skip_special_tokens=False,
-            include_stop_str_in_output=True,
-        ),
+        sampling_params=SamplingParams(**sampling_kwargs),
     )
 
     self_gen_data = {
@@ -483,7 +493,15 @@ def execute_qa_generation(
                 print(f"logprobs_indices={indices[-1]}")
             print("=" * 80)
 
-    print(f"Generated {len(samples)} samples")
+    n_valid = sum(1 for s in samples if s["input_ids"])
+    n_total_qa = sum(len(q_list) for q_list in questions)
+    print(f"Generated {len(samples)} samples ({n_valid} with valid QA pairs, "
+          f"{n_skips}/{n_total_qa} individual responses skipped)")
+    if n_valid == 0:
+        print("WARNING: All responses were skipped! The output parquet will have "
+              "empty input_ids. Training will fail with 0 samples.")
+        print("Common causes: finish_reason='length' (increase --max_new_tokens), "
+              "or model not generating EOS token.")
     # random.shuffle(samples)
 
     # Save results

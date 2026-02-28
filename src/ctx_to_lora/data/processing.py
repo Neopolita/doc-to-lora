@@ -426,10 +426,23 @@ def construct_and_tokenize_ctx_qa(
     tokenized_ds = tokenized_ds.remove_columns(
         [col for col in tokenized_ds.column_names if col not in COLS_TO_KEEP_TOKENIZED],
     )
+    n_before_filter = len(tokenized_ds)
     tokenized_ds = tokenized_ds.filter(
         lambda x: bool(x["input_ids"]),  # remove empty "input_ids"
         num_proc=16,
     )
+    n_after_filter = len(tokenized_ds)
+    if n_after_filter == 0:
+        raise ValueError(
+            f"All {n_before_filter} samples were removed by the empty input_ids filter. "
+            "This typically means the self-gen data has no valid QA pairs. "
+            "Check the self-gen logs for 'Skipping due to finish_reason' messages."
+        )
+    elif n_after_filter < n_before_filter:
+        logger.warning(
+            f"Filtered out {n_before_filter - n_after_filter}/{n_before_filter} "
+            "samples with empty input_ids."
+        )
 
     if need_ctx_ids:
         if (
