@@ -16,6 +16,9 @@ echo "=========================================="
 
 bash install.sh
 
+# Upgrade mistral_common for Ministral-3-3B tokenizer v13 support
+uv pip install --upgrade mistral-common
+
 echo "=========================================="
 echo "Phase 1: Generate minimal self-gen data"
 echo "=========================================="
