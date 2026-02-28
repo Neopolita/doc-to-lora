@@ -79,6 +79,17 @@ def get_tokenizer(
         # Fallback for models whose tokenizer class isn't in this transformers version
         # (e.g. Ministral-3-3B uses TokenizersBackend, unknown to transformers 4.51.3)
         from transformers import PreTrainedTokenizerFast
+        from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+
+        # Patch: transformers 4.51.3 expects extra_special_tokens as dict, but
+        # newer model configs may provide a list
+        _orig = PreTrainedTokenizerBase._set_model_specific_special_tokens
+        def _patched(self, special_tokens=None):
+            if isinstance(special_tokens, list):
+                special_tokens = {}
+            return _orig(self, special_tokens=special_tokens)
+        PreTrainedTokenizerBase._set_model_specific_special_tokens = _patched
+
         tokenizer = PreTrainedTokenizerFast.from_pretrained(
             model_name_or_path,
             add_bos_tokens=False,
