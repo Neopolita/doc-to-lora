@@ -31,14 +31,18 @@ bash install.sh
 
 # Patch vLLM 0.8.5's llama weight loader to skip fake_quantizer keys
 # (Ministral-3-3B FP8 checkpoint has calibration weights vLLM doesn't know about)
-.venv/bin/python -c "
+.venv/bin/python << 'PATCH'
 p = '.venv/lib/python3.10/site-packages/vllm/model_executor/models/llama.py'
 t = open(p).read()
 old = '            param = params_dict[name]'
-new = '            if name not in params_dict:\n                continue\n            param = params_dict[name]'
+new = (
+    '            if name not in params_dict:\n'
+    '                continue\n'
+    '            param = params_dict[name]'
+)
 open(p, 'w').write(t.replace(old, new, 1))
 print('Patched vLLM llama.py to skip unknown weight keys')
-"
+PATCH
 
 echo "=========================================="
 echo "Phase 1: Base data setup"
