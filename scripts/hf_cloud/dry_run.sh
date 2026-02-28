@@ -66,9 +66,8 @@ echo "Phase 2: Training (10 steps, 1 GPU)"
 echo "=========================================="
 
 .venv/bin/accelerate launch \
-    --config_file accelerate_config.yaml \
+    --config_file configs/main_exp/ministral-3b/accelerate_dry_run.yaml \
     --main_process_port $PORT \
-    --num_processes=1 --gpu_ids 0 \
     train.py \
     "${CONFIG}" \
     --model_name_or_path="${MODEL}" \
