@@ -33,14 +33,16 @@ bash install.sh
 # (Ministral-3-3B FP8 checkpoint has calibration weights vLLM doesn't know about)
 .venv/bin/python << 'PATCH'
 p = '.venv/lib/python3.10/site-packages/vllm/model_executor/models/llama.py'
-t = open(p).read()
-old = '            param = params_dict[name]'
-new = (
-    '            if name not in params_dict:\n'
-    '                continue\n'
-    '            param = params_dict[name]'
-)
-open(p, 'w').write(t.replace(old, new, 1))
+lines = open(p).readlines()
+out = []
+for line in lines:
+    if line.strip() == 'param = params_dict[name]':
+        indent = len(line) - len(line.lstrip())
+        sp = ' ' * indent
+        out.append(sp + 'if name not in params_dict:\n')
+        out.append(sp + '    continue\n')
+    out.append(line)
+open(p, 'w').writelines(out)
 print('Patched vLLM llama.py to skip unknown weight keys')
 PATCH
 
