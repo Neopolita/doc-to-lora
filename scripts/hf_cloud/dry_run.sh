@@ -20,6 +20,7 @@ bash install.sh
 # Needs >=1.9.0, but vLLM 0.8.5 pins an older version — force it
 # Use pip directly to bypass uv's lockfile constraints
 .venv/bin/pip install "mistral-common>=1.9.0" --force-reinstall --no-deps
+.venv/bin/pip install pydantic-extra-types
 
 echo "=========================================="
 echo "Phase 1: Generate minimal self-gen data"
