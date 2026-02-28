@@ -195,7 +195,10 @@ def get_model(
         # Strip FP8 quantization config — we want bf16 for training, and
         # transformers 4.51.3 doesn't support activation_scheme="static"
         config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
-        config.quantization_config = None
+        if hasattr(config, "quantization_config"):
+            delattr(config, "quantization_config")
+        if hasattr(getattr(config, "text_config", None), "quantization_config"):
+            delattr(config.text_config, "quantization_config")
         model_init_kwargs["config"] = config
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
