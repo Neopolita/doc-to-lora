@@ -203,6 +203,9 @@ def get_model(
         # PixtralVisionModel doesn't support flash_attention_2 — use eager
         # (we only need the language_model anyway, vision tower is discarded)
         model_init_kwargs["attn_implementation"] = "eager"
+        # Skip BitsAndBytes 4-bit quantization — the FP8 weights can't be
+        # quantized by bnb (needs bf16/fp32 input). The 3B model is small enough.
+        model_init_kwargs.pop("quantization_config", None)
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
         # Restore name_or_path (lost when extracting sub-model from multimodal wrapper)
