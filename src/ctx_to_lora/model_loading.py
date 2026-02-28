@@ -205,6 +205,8 @@ def get_model(
         model_init_kwargs["attn_implementation"] = "eager"
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
+        # Restore name_or_path (lost when extracting sub-model from multimodal wrapper)
+        model.config.name_or_path = model_name_or_path
     else:
         model = Gemma3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
