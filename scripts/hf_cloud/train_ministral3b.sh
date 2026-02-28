@@ -24,11 +24,11 @@ echo "=========================================="
 
 bash install.sh
 
-# Force upgrade mistral_common for Ministral-3-3B tokenizer v13 support
-# Needs >=1.9.0, but vLLM 0.8.5 pins an older version — force it
+# Upgrade vLLM + mistral_common for Ministral-3-3B support:
+#   - vLLM 0.8.5 can't load Ministral-3-3B's FP8 weights (fake_quantizer keys)
+#   - mistral_common <1.9.0 doesn't support tokenizer v13
 # Use pip directly to bypass uv's lockfile constraints
-.venv/bin/pip install "mistral-common>=1.9.0" --force-reinstall --no-deps
-.venv/bin/pip install pydantic-extra-types
+.venv/bin/pip install "vllm>=0.9" "mistral-common>=1.9.0"
 
 echo "=========================================="
 echo "Phase 1: Base data setup"
