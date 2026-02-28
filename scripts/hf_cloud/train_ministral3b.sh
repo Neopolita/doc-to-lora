@@ -24,9 +24,9 @@ echo "=========================================="
 
 bash install.sh
 
-# Upgrade vLLM + mistral_common for Ministral-3-3B support
-# vLLM is only used for data generation, not training — safe to upgrade
-uv pip install --upgrade vllm mistral-common
+# Force upgrade mistral_common for Ministral-3-3B tokenizer v13 support
+# Needs >=1.9.0, but vLLM 0.8.5 pins an older version — force it
+uv pip install "mistral-common>=1.9.0" --force-reinstall --no-deps
 
 echo "=========================================="
 echo "Phase 1: Base data setup"
