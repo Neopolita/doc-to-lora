@@ -44,6 +44,15 @@ MODEL_CTX_LEN = {
     "mistralai/Ministral-3-3B-Instruct-2512": 2**13 + 2**12,
 }
 
+# Extra vLLM kwargs for models that need non-default loading
+VLLM_MODEL_KWARGS = {
+    "mistralai/Ministral-3-3B-Instruct-2512": dict(
+        tokenizer_mode="mistral",
+        config_format="mistral",
+        load_format="mistral",
+    ),
+}
+
 
 def truncate_middle_if_too_long(
     input_ids: list[int],
@@ -584,6 +593,7 @@ if __name__ == "__main__":
         max_model_len=MODEL_CTX_LEN.get(vllm_model),
         max_num_batched_tokens=16384,
         max_num_seqs=32,  # avoid oom when getting logprobs
+        **VLLM_MODEL_KWARGS.get(vllm_model, {}),
     )
 
     print(f"{llm_kwargs=}")
