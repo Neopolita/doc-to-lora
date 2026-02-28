@@ -89,19 +89,20 @@ echo "=========================================="
     --split train --closed_qa_prob 1.0 --max_new_tokens 512 --debug
 
 echo "=========================================="
-echo "Phase 2: Training (10 steps, 1 GPU)"
+echo "Phase 2: Training (100 steps, 8 GPUs)"
 echo "=========================================="
 
 .venv/bin/accelerate launch \
-    --config_file configs/main_exp/ministral-3b/accelerate_dry_run.yaml \
+    --config_file accelerate_config.yaml \
     --main_process_port $PORT \
+    --num_processes=8 --gpu_ids all \
     train.py \
     "${CONFIG}" \
     --model_name_or_path="${MODEL}" \
     --target_modules=down_proj --lora_r=8 \
     --eval_strategy=no --max_qas_len=2048 --max_qas_per_sample=1 \
     --per_rank_gen=True --per_layer_processing=True --gen_lora_l1_reg_coef=0.1 \
-    --max_steps=10 --gradient_accumulation_steps=1 --max_packed_inp_len=4096 \
+    --max_steps=100 --gradient_accumulation_steps=8 --max_packed_inp_len=4096 \
     --max_packed_ctx_len=4096 --use_per_ctx_average_loss=True --use_kl_loss=True \
     --quantize_ctx_encoder=True
 
