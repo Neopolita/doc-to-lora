@@ -54,9 +54,8 @@ MODEL_CTX_LEN = {
 VLLM_MODEL_KWARGS = {
     "mistralai/Ministral-3-3B-Instruct-2512": dict(
         tokenizer_mode="mistral",
-        # Use default HF format instead of load_format="mistral" — the native
-        # Mistral FP8 consolidated format produces garbage output on vLLM 0.8.5.
-        # Our llama.py patch already skips the fake_quantizer keys.
+        config_format="mistral",
+        load_format="mistral",
     ),
 }
 
@@ -387,18 +386,24 @@ def execute_qa_generation(
     }
     c = 0
     n_skips = 0
+    n_length = 0
     sys_start = None
     for ctx, q_list in zip(ctxs, questions):
         # self_gen_data[ctx]["ctx_ids"] = ctx_ids
         for i, _ in enumerate(q_list):
             # response = completions[c + i].outputs[0].text
             reason = completions[c + i].outputs[0].finish_reason
-            if reason != "stop":
-                # print(f"idx: {c + i}")
-                print(f"finish_reason: {completions[c + i].outputs[0].finish_reason}")
-                print(f"Skipping due to finish_reason={reason} != 'stop'")
+            if reason not in ("stop", "length"):
+                print(f"finish_reason: {reason}")
+                print(f"Skipping due to finish_reason={reason}")
                 n_skips += 1
                 continue
+            if reason == "length":
+                n_length += 1
+                if n_length <= 3:
+                    # Print first few truncated responses for debugging
+                    text = completions[c + i].outputs[0].text
+                    print(f"[DEBUG] finish_reason=length, response preview: {text[:200]}...")
 
             # includes the logprob before the first response token
             # but excludes the logprob from eos token
@@ -461,7 +466,8 @@ def execute_qa_generation(
 
         c += i + 1
 
-    print(f"Skipped {n_skips} responses due to missing stop strings")
+    print(f"Skipped {n_skips} responses due to bad finish_reason, "
+          f"{n_length} responses truncated (finish_reason=length)")
     samples = [
         {
             # "context": ctx,
