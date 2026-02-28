@@ -191,7 +191,12 @@ def get_model(
         else:
             model = AutoModelForCausalLM.from_pretrained(**model_init_kwargs)
     elif model_name_or_path in MISTRAL3_VISION_MODELS:
-        from transformers import Mistral3ForConditionalGeneration
+        from transformers import AutoConfig, Mistral3ForConditionalGeneration
+        # Strip FP8 quantization config — we want bf16 for training, and
+        # transformers 4.51.3 doesn't support activation_scheme="static"
+        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+        config.quantization_config = None
+        model_init_kwargs["config"] = config
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
     else:
