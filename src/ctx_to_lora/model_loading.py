@@ -201,8 +201,10 @@ def get_model(
         # Use BF16 variant if available (FP8 weights can't be dequantized by transformers 4.51.3)
         download_name = BF16_VARIANTS.get(model_name_or_path, model_name_or_path)
         model_init_kwargs["pretrained_model_name_or_path"] = download_name
-        # Load multimodal model, then extract text-only language_model.
-        # flash_attention_2 (set above) is kept — vision tower is discarded anyway.
+        # PixtralVisionModel doesn't support flash_attention_2, so load with sdpa.
+        # sdpa is equally memory-efficient (PyTorch dispatches to FlashAttention kernels).
+        # The vision tower is discarded immediately after extraction.
+        model_init_kwargs["attn_implementation"] = "sdpa"
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
         # Restore name_or_path (lost when extracting sub-model from multimodal wrapper)
