@@ -54,8 +54,9 @@ MODEL_CTX_LEN = {
 VLLM_MODEL_KWARGS = {
     "mistralai/Ministral-3-3B-Instruct-2512": dict(
         tokenizer_mode="mistral",
-        config_format="mistral",
-        load_format="mistral",
+        # Use default HF format instead of load_format="mistral" — the native
+        # Mistral FP8 consolidated format produces garbage output on vLLM 0.8.5.
+        # Our llama.py patch already skips the fake_quantizer keys.
     ),
 }
 
