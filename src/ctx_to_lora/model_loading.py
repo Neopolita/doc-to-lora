@@ -197,17 +197,25 @@ def get_model(
         else:
             model = AutoModelForCausalLM.from_pretrained(**model_init_kwargs)
     elif model_name_or_path in MISTRAL3_VISION_MODELS:
-        from transformers import Mistral3ForConditionalGeneration
+        from transformers import MistralForCausalLM, Mistral3ForConditionalGeneration
         # Use BF16 variant if available (FP8 weights can't be dequantized by transformers 4.51.3)
         download_name = BF16_VARIANTS.get(model_name_or_path, model_name_or_path)
         model_init_kwargs["pretrained_model_name_or_path"] = download_name
-        # PixtralVisionModel doesn't support flash_attention_2, so load with sdpa.
-        # sdpa is equally memory-efficient (PyTorch dispatches to FlashAttention kernels).
-        # The vision tower is discarded immediately after extraction.
-        model_init_kwargs["attn_implementation"] = "sdpa"
-        model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
-        model = model.language_model
-        # Restore name_or_path (lost when extracting sub-model from multimodal wrapper)
+        # PixtralVisionModel only supports eager attention, so load multimodal with
+        # eager, extract the language model weights, then re-instantiate as standalone
+        # MistralForCausalLM with flash_attention_2 for memory efficiency.
+        model_init_kwargs["attn_implementation"] = "eager"
+        multimodal = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
+        lang_config = multimodal.language_model.config
+        lang_state_dict = multimodal.language_model.state_dict()
+        del multimodal
+        # Re-create as standalone MistralForCausalLM with desired attention impl
+        attn_impl = "flash_attention_2" if use_flash_attn else "eager"
+        lang_config._attn_implementation = attn_impl
+        model = MistralForCausalLM(lang_config)
+        model.load_state_dict(lang_state_dict)
+        del lang_state_dict
+        model = model.to(device=device, dtype=dtype)
         model.config.name_or_path = model_name_or_path
     else:
         model = Gemma3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
