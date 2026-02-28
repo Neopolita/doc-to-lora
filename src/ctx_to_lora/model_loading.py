@@ -197,25 +197,30 @@ def get_model(
         else:
             model = AutoModelForCausalLM.from_pretrained(**model_init_kwargs)
     elif model_name_or_path in MISTRAL3_VISION_MODELS:
+        import tempfile
         from transformers import MistralForCausalLM, Mistral3ForConditionalGeneration
-        # Use BF16 variant if available (FP8 weights can't be dequantized by transformers 4.51.3)
         download_name = BF16_VARIANTS.get(model_name_or_path, model_name_or_path)
-        model_init_kwargs["pretrained_model_name_or_path"] = download_name
-        # PixtralVisionModel only supports eager attention, so load multimodal with
-        # eager, extract the language model weights, then re-instantiate as standalone
-        # MistralForCausalLM with flash_attention_2 for memory efficiency.
-        model_init_kwargs["attn_implementation"] = "eager"
-        multimodal = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
-        lang_config = multimodal.language_model.config
-        lang_state_dict = multimodal.language_model.state_dict()
-        del multimodal
-        # Re-create as standalone MistralForCausalLM with desired attention impl
-        attn_impl = "flash_attention_2" if use_flash_attn else "eager"
-        lang_config._attn_implementation = attn_impl
-        model = MistralForCausalLM(lang_config)
-        model.load_state_dict(lang_state_dict)
-        del lang_state_dict
-        model = model.to(device=device, dtype=dtype)
+        # Save quantization config — can't apply during multimodal loading (PixtralVisionModel
+        # only supports eager attn, and NF4 state_dicts can't be swapped into a fresh model).
+        # Instead: load multimodal unquantized on CPU → save language model → reload with
+        # flash_attention_2 + quantization via from_pretrained.
+        bnb_config = model_init_kwargs.pop("quantization_config", None)
+        mm_kwargs = {
+            **model_init_kwargs,
+            "pretrained_model_name_or_path": download_name,
+            "attn_implementation": "eager",
+            "device_map": "cpu",
+        }
+        logger.info(f"Loading multimodal {download_name} on CPU to extract language model...")
+        multimodal = Mistral3ForConditionalGeneration.from_pretrained(**mm_kwargs)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            multimodal.language_model.save_pretrained(tmpdir, safe_serialization=True)
+            del multimodal
+            # Reload as standalone MistralForCausalLM with flash attn + optional quantization
+            reload_kwargs = {**model_init_kwargs, "pretrained_model_name_or_path": tmpdir}
+            if bnb_config:
+                reload_kwargs["quantization_config"] = bnb_config
+            model = MistralForCausalLM.from_pretrained(**reload_kwargs)
         model.config.name_or_path = model_name_or_path
     else:
         model = Gemma3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
