@@ -200,9 +200,9 @@ def get_model(
         if hasattr(getattr(config, "text_config", None), "quantization_config"):
             delattr(config.text_config, "quantization_config")
         model_init_kwargs["config"] = config
-        # PixtralVisionModel doesn't support flash_attention_2 — use eager
-        # (we only need the language_model anyway, vision tower is discarded)
-        model_init_kwargs["attn_implementation"] = "eager"
+        # Keep flash_attention_2 (set above) — we discard the vision tower
+        # immediately and only keep language_model (MistralForCausalLM),
+        # which fully supports flash attention. Eager attention OOMs on A100.
         # Skip BitsAndBytes 4-bit quantization — the FP8 weights can't be
         # quantized by bnb (needs bf16/fp32 input). The 3B model is small enough.
         model_init_kwargs.pop("quantization_config", None)

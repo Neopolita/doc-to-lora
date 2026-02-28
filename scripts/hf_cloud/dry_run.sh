@@ -69,11 +69,22 @@ echo "Building compact datasets..."
 .venv/bin/python data/build_drop_compact.py
 
 echo "=========================================="
+echo "Phase 0.9: Convert FP8 model to bf16"
+echo "=========================================="
+
+# vLLM 0.8.5 can't properly dequantize Ministral-3-3B's FP8 weights,
+# producing garbage (<unk> tokens). Convert to bf16 via transformers first.
+BF16_MODEL="models/ministral-3b-bf16"
+.venv/bin/python scripts/convert_fp8_to_bf16.py \
+    --model "${MODEL}" --output "${BF16_MODEL}"
+
+echo "=========================================="
 echo "Phase 1: Generate minimal self-gen data"
 echo "=========================================="
 
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
+    --vllm_model_path "${BF16_MODEL}" \
     --ds_names squad_compact drop_compact \
     --split train --closed_qa_prob 1.0 --max_new_tokens 512 --debug
 

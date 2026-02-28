@@ -596,6 +596,13 @@ def parse_args() -> argparse.Namespace:
         default=256,
         help="Maximum number of new tokens to generate (default: 256)",
     )
+    parser.add_argument(
+        "--vllm_model_path",
+        type=str,
+        default=None,
+        help="Override model path for vLLM (e.g., local bf16 conversion). "
+        "--vllm_model is still used for tokenizer, output paths, and config lookups.",
+    )
     return parser.parse_args()
 
 
@@ -607,18 +614,31 @@ if __name__ == "__main__":
         raise ValueError("--split is required when using --ds_names")
 
     vllm_model = args.vllm_model
+    vllm_model_path = args.vllm_model_path or vllm_model
     print(f"Using model: {vllm_model}")
+    if args.vllm_model_path:
+        print(f"Using model path override: {vllm_model_path}")
 
     # Setup model-specific configurations
+    model_kwargs = VLLM_MODEL_KWARGS.get(vllm_model, {}).copy()
+    if args.vllm_model_path:
+        # When using a local converted model, we don't need config_format/load_format
+        # (those are for loading the original FP8/mistral-format weights).
+        # We still need tokenizer_mode for Tekken tokenizers.
+        model_kwargs.pop("config_format", None)
+        model_kwargs.pop("load_format", None)
+        # Point tokenizer at the original HF model (converted dir has no tokenizer)
+        model_kwargs["tokenizer"] = vllm_model
+
     llm_kwargs = dict(
-        model=vllm_model,
+        model=vllm_model_path,
         dtype="bfloat16",
         enable_prefix_caching=True,
         enable_chunked_prefill=True,
         max_model_len=MODEL_CTX_LEN.get(vllm_model),
         max_num_batched_tokens=16384,
         max_num_seqs=32,  # avoid oom when getting logprobs
-        **VLLM_MODEL_KWARGS.get(vllm_model, {}),
+        **model_kwargs,
     )
 
     print(f"{llm_kwargs=}")

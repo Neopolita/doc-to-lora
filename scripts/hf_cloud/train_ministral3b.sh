@@ -79,6 +79,16 @@ echo "Building compact datasets..."
 .venv/bin/python data/build_squad_compact.py
 
 echo "=========================================="
+echo "Phase 1.5: Convert FP8 model to bf16"
+echo "=========================================="
+
+# vLLM 0.8.5 can't properly dequantize Ministral-3-3B's FP8 weights,
+# producing garbage (<unk> tokens). Convert to bf16 via transformers first.
+BF16_MODEL="models/ministral-3b-bf16"
+.venv/bin/python scripts/convert_fp8_to_bf16.py \
+    --model "${MODEL}" --output "${BF16_MODEL}"
+
+echo "=========================================="
 echo "Phase 2: FineWeb QA pair generation"
 echo "=========================================="
 
@@ -114,6 +124,7 @@ echo "Generating self-gen responses for FineWeb QA..."
 for shard_id in $(seq -f "%03g" 0 13); do
     .venv/bin/python data/self_generate_qa.py \
         --vllm_model "${MODEL}" \
+        --vllm_model_path "${BF16_MODEL}" \
         --glob_pattern "data/raw_datasets/fw_qa_v2/min_0_to_2000/${shard_id}*_level_1*" \
         --closed_qa_prob 1.0
 done
@@ -122,17 +133,20 @@ done
 echo "Generating self-gen responses for validation..."
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
+    --vllm_model_path "${BF16_MODEL}" \
     --glob_pattern 'data/raw_datasets/fw_qa_v2/min_0_to_2000/*_level_0_val.parquet'
 
 # Self-gen for other datasets
 echo "Generating self-gen responses for compact datasets..."
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
+    --vllm_model_path "${BF16_MODEL}" \
     --ds_names squad_compact ropes_compact drop_compact \
     --split train --closed_qa_prob 1.0
 
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
+    --vllm_model_path "${BF16_MODEL}" \
     --ds_names pwc_compact \
     --split train --closed_qa_prob 0.0
 
