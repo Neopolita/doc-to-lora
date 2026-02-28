@@ -33,18 +33,21 @@ echo "=========================================="
 echo "Phase 1: Base data setup"
 echo "=========================================="
 
+# Use .venv/bin directly (not uv run) to prevent uv from
+# re-syncing the environment and reverting the mistral_common upgrade
+
 # Download SQuAD
 if [ ! -d "data/raw_datasets/squad" ]; then
     echo "Downloading SQuAD..."
-    uv run huggingface-cli download --repo-type dataset rajpurkar/squad --local-dir data/raw_datasets/squad
+    .venv/bin/huggingface-cli download --repo-type dataset rajpurkar/squad --local-dir data/raw_datasets/squad
 fi
 
 # Build compact datasets
 echo "Building compact datasets..."
-uv run data/build_drop_compact.py
-uv run data/build_pwc_compact.py
-uv run data/build_ropes_compact.py
-uv run data/build_squad_compact.py
+.venv/bin/python data/build_drop_compact.py
+.venv/bin/python data/build_pwc_compact.py
+.venv/bin/python data/build_ropes_compact.py
+.venv/bin/python data/build_squad_compact.py
 
 echo "=========================================="
 echo "Phase 2: FineWeb QA pair generation"
@@ -53,20 +56,20 @@ echo "=========================================="
 # Download FineWeb Edu
 if [ ! -d "data/raw_datasets/fineweb_edu" ]; then
     echo "Downloading FineWeb Edu..."
-    uv run data/download_fineweb_edu.py
+    .venv/bin/python data/download_fineweb_edu.py
 fi
 
 # Generate QA pairs from FineWeb using gemma-3-12b-it
 echo "Generating FineWeb QA pairs (level 0 and 1)..."
 for shard_id in $(seq -f "%03g" 0 13); do
     if [ ! -f "data/raw_datasets/fw_qa_v2/min_0_to_2000/${shard_id}"*level_1*.parquet ] 2>/dev/null; then
-        uv run data/generate_fw_edu_qa_v2.py \
+        .venv/bin/python data/generate_fw_edu_qa_v2.py \
             --shard_pattern "${shard_id}_00000" \
             --n_qa_pairs=5 \
             --vllm_model="${QA_GEN_MODEL}" \
             --max_length=2000 \
             --max_model_length=2048
-        uv run data/generate_fw_edu_qa_v2_repeat.py \
+        .venv/bin/python data/generate_fw_edu_qa_v2_repeat.py \
             --shard_pattern "min_0_to_2000/${shard_id}*level_0" \
             --n_qa_pairs=5 \
             --vllm_model="${QA_GEN_MODEL}"
@@ -80,7 +83,7 @@ echo "=========================================="
 # Self-gen FineWeb QA responses using Ministral-3-3B
 echo "Generating self-gen responses for FineWeb QA..."
 for shard_id in $(seq -f "%03g" 0 13); do
-    uv run data/self_generate_qa.py \
+    .venv/bin/python data/self_generate_qa.py \
         --vllm_model "${MODEL}" \
         --glob_pattern "data/raw_datasets/fw_qa_v2/min_0_to_2000/${shard_id}*_level_1*" \
         --closed_qa_prob 1.0
@@ -88,18 +91,18 @@ done
 
 # Validation split
 echo "Generating self-gen responses for validation..."
-uv run data/self_generate_qa.py \
+.venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --glob_pattern 'data/raw_datasets/fw_qa_v2/min_0_to_2000/*_level_0_val.parquet'
 
 # Self-gen for other datasets
 echo "Generating self-gen responses for compact datasets..."
-uv run data/self_generate_qa.py \
+.venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --ds_names squad_compact ropes_compact drop_compact \
     --split train --closed_qa_prob 1.0
 
-uv run data/self_generate_qa.py \
+.venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --ds_names pwc_compact \
     --split train --closed_qa_prob 0.0
@@ -111,7 +114,7 @@ echo "=========================================="
 # HF_PUSH_REPO triggers automatic upload after training completes
 export HF_PUSH_REPO="${HF_REPO}"
 
-uv run accelerate launch \
+.venv/bin/accelerate launch \
     --config_file accelerate_config.yaml \
     --main_process_port $PORT \
     --num_processes=8 --gpu_ids all \

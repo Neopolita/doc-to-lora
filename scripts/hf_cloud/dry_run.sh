@@ -25,8 +25,9 @@ echo "=========================================="
 echo "Phase 1: Generate minimal self-gen data"
 echo "=========================================="
 
-# Self-gen for compact datasets only (with --debug for 10 samples each)
-uv run data/self_generate_qa.py \
+# Use .venv/bin directly (not uv run) to prevent uv from
+# re-syncing the environment and reverting the mistral_common upgrade
+.venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --ds_names squad_compact drop_compact \
     --split train --closed_qa_prob 1.0 --debug
@@ -35,7 +36,7 @@ echo "=========================================="
 echo "Phase 2: Training (10 steps, 1 GPU)"
 echo "=========================================="
 
-uv run accelerate launch \
+.venv/bin/accelerate launch \
     --config_file accelerate_config.yaml \
     --main_process_port $PORT \
     --num_processes=1 --gpu_ids 0 \
