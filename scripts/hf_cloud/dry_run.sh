@@ -92,7 +92,7 @@ echo "=========================================="
 echo "Phase 2: Training (10 steps, 1 GPU)"
 echo "=========================================="
 
-CUDA_LAUNCH_BLOCKING=1 .venv/bin/accelerate launch \
+.venv/bin/accelerate launch \
     --config_file configs/main_exp/ministral-3b/accelerate_dry_run.yaml \
     --main_process_port $PORT \
     train.py \

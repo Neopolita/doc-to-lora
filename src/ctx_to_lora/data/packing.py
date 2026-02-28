@@ -98,8 +98,8 @@ def pack_data_points_FA(
         )
         n_labels = sum(len(y) for x in batch["logprobs_vals"] for y in x)
         k = len(batch["logprobs_vals"][0][0][0])  # assuming all have same k
-        logprobs_vals = np.empty((n_labels, k), dtype=np.float32)
-        logprobs_indices = np.empty((n_labels, k), dtype=np.int32)
+        logprobs_vals = np.full((n_labels, k), -1e4, dtype=np.float32)
+        logprobs_indices = np.zeros((n_labels, k), dtype=np.int32)
         logits_offset = 0
     else:
         sequences = zip(batch["input_ids"], batch["labels"])

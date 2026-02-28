@@ -410,9 +410,10 @@ def execute_qa_generation(
             # len = num response tokens
             n_response_tokens = len(completions[c + i].outputs[0].token_ids)
 
-            logp_indices = np.empty((n_response_tokens, k), dtype=np.int32)
+            logp_indices = np.zeros((n_response_tokens, k), dtype=np.int32)
             # float-16 is better for this range
-            logp_vals = np.empty((n_response_tokens, k), dtype=np.float16)
+            # Initialize to very negative logprob so unfilled slots have ~0 probability
+            logp_vals = np.full((n_response_tokens, k), -1e4, dtype=np.float16)
             assert len(logp) == n_response_tokens, (
                 f"Expected {n_response_tokens} logp entries, got {len(logp)}"
             )

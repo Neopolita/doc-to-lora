@@ -167,17 +167,6 @@ class DistillationTrainer(ModulatedModelTrainer):
         ##### KL loss
         outputs_logits = outputs.logits[label_pos[0], label_pos[1] - 1]  # shift back 1
 
-        # Debug: check index bounds before gather
-        max_idx = indices.max().item()
-        min_idx = indices.min().item()
-        vocab_size = outputs_logits.shape[1]
-        if max_idx >= vocab_size or min_idx < 0:
-            raise ValueError(
-                f"logprobs_indices out of bounds: min={min_idx}, max={max_idx}, "
-                f"vocab_size={vocab_size}, indices.shape={indices.shape}, "
-                f"indices.dtype={indices.dtype}"
-            )
-
         logq_full_denom = torch.logsumexp(outputs_logits, dim=-1, keepdim=True)  # (N,1)
         selected_logits = outputs_logits.gather(1, indices)  # (N,K)
         # log softmax at selected indices
