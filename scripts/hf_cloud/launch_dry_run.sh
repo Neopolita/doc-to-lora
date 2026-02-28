@@ -12,7 +12,7 @@ REPO_URL="https://github.com/Neopolita/doc-to-lora"
 echo "Launching dry run..."
 hf jobs run \
     --namespace neopolita \
-    --flavor a100x8 \
+    --flavor a100x4 \
     --timeout 1h \
     --secrets WANDB_API_KEY \
     --secrets HF_TOKEN \

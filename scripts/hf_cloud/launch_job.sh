@@ -29,7 +29,7 @@ REPO_URL="https://github.com/Neopolita/doc-to-lora"
 echo "Launching HF Jobs training..."
 hf jobs run \
     --namespace neopolita \
-    --flavor a100x8 \
+    --flavor a100x4 \
     --timeout 72h \
     --secrets WANDB_API_KEY \
     --secrets HF_TOKEN \

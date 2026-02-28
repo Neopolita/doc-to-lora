@@ -160,7 +160,7 @@ export HF_PUSH_REPO="${HF_REPO}"
 .venv/bin/accelerate launch \
     --config_file accelerate_config.yaml \
     --main_process_port $PORT \
-    --num_processes=8 --gpu_ids all \
+    --num_processes=4 --gpu_ids all \
     train.py \
     "${CONFIG}" \
     --model_name_or_path="${MODEL}" \

@@ -89,13 +89,13 @@ echo "=========================================="
     --split train --closed_qa_prob 1.0 --max_new_tokens 512 --debug
 
 echo "=========================================="
-echo "Phase 2: Training (100 steps, 8 GPUs)"
+echo "Phase 2: Training (100 steps, 4 GPUs)"
 echo "=========================================="
 
 .venv/bin/accelerate launch \
     --config_file accelerate_config.yaml \
     --main_process_port $PORT \
-    --num_processes=8 --gpu_ids all \
+    --num_processes=4 --gpu_ids all \
     train.py \
     "${CONFIG}" \
     --model_name_or_path="${MODEL}" \
