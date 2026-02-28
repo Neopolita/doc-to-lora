@@ -158,9 +158,8 @@ echo "=========================================="
 export HF_PUSH_REPO="${HF_REPO}"
 
 .venv/bin/accelerate launch \
-    --config_file accelerate_config.yaml \
+    --config_file configs/main_exp/ministral-3b/accelerate_dry_run.yaml \
     --main_process_port $PORT \
-    --num_processes=8 --gpu_ids all \
     train.py \
     "${CONFIG}" \
     --model_name_or_path="${MODEL}" \
@@ -169,7 +168,8 @@ export HF_PUSH_REPO="${HF_REPO}"
     --per_rank_gen=True --per_layer_processing=True --gen_lora_l1_reg_coef=0.1 \
     --max_steps=80000 --gradient_accumulation_steps=8 --max_packed_inp_len=4096 \
     --max_packed_ctx_len=4096 --use_per_ctx_average_loss=True --use_kl_loss=True \
-    --quantize_ctx_encoder=True
+    --quantize_ctx_encoder=True \
+    --save_steps=500 --save_total_limit=5
 
 echo "=========================================="
 echo "Done! Model pushed to https://huggingface.co/${HF_REPO}"
