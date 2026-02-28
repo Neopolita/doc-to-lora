@@ -33,6 +33,12 @@ MISTRAL3_VISION_MODELS = [
     "mistralai/Ministral-3-3B-Instruct-2512",
 ]
 
+# Map FP8 model IDs to their official BF16 variants.
+# The FP8 weights can't be properly dequantized by transformers 4.51.3 or vLLM 0.8.5.
+BF16_VARIANTS = {
+    "mistralai/Ministral-3-3B-Instruct-2512": "mistralai/Ministral-3-3B-Instruct-2512-BF16",
+}
+
 
 def check_is_vision_model(model_name):
     return model_name in GEMMA_VISION_MODELS or model_name in MISTRAL3_VISION_MODELS
@@ -191,21 +197,12 @@ def get_model(
         else:
             model = AutoModelForCausalLM.from_pretrained(**model_init_kwargs)
     elif model_name_or_path in MISTRAL3_VISION_MODELS:
-        from transformers import AutoConfig, Mistral3ForConditionalGeneration
-        # Strip FP8 quantization config — we want bf16 for training, and
-        # transformers 4.51.3 doesn't support activation_scheme="static"
-        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
-        if hasattr(config, "quantization_config"):
-            delattr(config, "quantization_config")
-        if hasattr(getattr(config, "text_config", None), "quantization_config"):
-            delattr(config.text_config, "quantization_config")
-        model_init_kwargs["config"] = config
-        # Keep flash_attention_2 (set above) — we discard the vision tower
-        # immediately and only keep language_model (MistralForCausalLM),
-        # which fully supports flash attention. Eager attention OOMs on A100.
-        # Skip BitsAndBytes 4-bit quantization — the FP8 weights can't be
-        # quantized by bnb (needs bf16/fp32 input). The 3B model is small enough.
-        model_init_kwargs.pop("quantization_config", None)
+        from transformers import Mistral3ForConditionalGeneration
+        # Use BF16 variant if available (FP8 weights can't be dequantized by transformers 4.51.3)
+        download_name = BF16_VARIANTS.get(model_name_or_path, model_name_or_path)
+        model_init_kwargs["pretrained_model_name_or_path"] = download_name
+        # Load multimodal model, then extract text-only language_model.
+        # flash_attention_2 (set above) is kept — vision tower is discarded anyway.
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
         # Restore name_or_path (lost when extracting sub-model from multimodal wrapper)

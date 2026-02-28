@@ -79,13 +79,13 @@ echo "Building compact datasets..."
 .venv/bin/python data/build_squad_compact.py
 
 echo "=========================================="
-echo "Phase 1.5: Convert FP8 model to bf16"
+echo "Phase 1.5: Extract text-only language model"
 echo "=========================================="
 
-# vLLM 0.8.5 can't properly dequantize Ministral-3-3B's FP8 weights,
-# producing garbage (<unk> tokens). Convert to bf16 via transformers first.
+# Ministral-3-3B is packaged as a multimodal model (Mistral3ForConditionalGeneration).
+# vLLM 0.8.5 can't load it directly. Extract the text-only MistralForCausalLM.
 BF16_MODEL="models/ministral-3b-bf16"
-.venv/bin/python scripts/convert_fp8_to_bf16.py \
+.venv/bin/python scripts/extract_language_model.py \
     --model "${MODEL}" --output "${BF16_MODEL}"
 
 echo "=========================================="

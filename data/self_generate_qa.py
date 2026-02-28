@@ -54,8 +54,6 @@ MODEL_CTX_LEN = {
 VLLM_MODEL_KWARGS = {
     "mistralai/Ministral-3-3B-Instruct-2512": dict(
         tokenizer_mode="mistral",
-        config_format="mistral",
-        load_format="mistral",
     ),
 }
 
