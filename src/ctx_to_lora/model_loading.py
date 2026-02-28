@@ -28,9 +28,14 @@ GEMMA_VISION_MODELS = [
     "google/gemma-3-27b-it",
 ]
 
+# Multimodal models that use Mistral3ForConditionalGeneration (Pixtral-like)
+MISTRAL3_VISION_MODELS = [
+    "mistralai/Ministral-3-3B-Instruct-2512",
+]
+
 
 def check_is_vision_model(model_name):
-    return model_name in GEMMA_VISION_MODELS
+    return model_name in GEMMA_VISION_MODELS or model_name in MISTRAL3_VISION_MODELS
 
 
 def get_model_and_tokenizer(
@@ -185,6 +190,10 @@ def get_model(
             model = AutoModel.from_pretrained(**model_init_kwargs)
         else:
             model = AutoModelForCausalLM.from_pretrained(**model_init_kwargs)
+    elif model_name_or_path in MISTRAL3_VISION_MODELS:
+        from transformers import Mistral3ForConditionalGeneration
+        model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
+        model = model.language_model
     else:
         model = Gemma3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
