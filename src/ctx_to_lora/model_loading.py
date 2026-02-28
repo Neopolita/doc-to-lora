@@ -200,6 +200,9 @@ def get_model(
         if hasattr(getattr(config, "text_config", None), "quantization_config"):
             delattr(config.text_config, "quantization_config")
         model_init_kwargs["config"] = config
+        # PixtralVisionModel doesn't support flash_attention_2 — use eager
+        # (we only need the language_model anyway, vision tower is discarded)
+        model_init_kwargs["attn_implementation"] = "eager"
         model = Mistral3ForConditionalGeneration.from_pretrained(**model_init_kwargs)
         model = model.language_model
     else:
