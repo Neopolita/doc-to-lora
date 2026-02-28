@@ -21,9 +21,11 @@ bash install.sh
 .venv/bin/pip install "mistral-common>=1.9.0" --force-reinstall --no-deps
 .venv/bin/pip install pydantic-extra-types
 
-# Patch vLLM 0.8.5's llama weight loader to skip fake_quantizer keys
-# (Ministral-3-3B FP8 checkpoint has calibration weights vLLM doesn't know about)
+# Patch vLLM 0.8.5 for Ministral-3-3B compatibility
 .venv/bin/python << 'PATCH'
+import os
+
+# 1. Skip fake_quantizer keys in llama weight loader
 p = '.venv/lib/python3.10/site-packages/vllm/model_executor/models/llama.py'
 lines = open(p).readlines()
 out = []
@@ -35,7 +37,17 @@ for line in lines:
         out.append(sp + '    continue\n')
     out.append(line)
 open(p, 'w').writelines(out)
-print('Patched vLLM llama.py to skip unknown weight keys')
+print('Patched llama.py: skip unknown weight keys')
+
+# 2. Remove skip_special_tokens=False assert in Mistral tokenizer
+p = '.venv/lib/python3.10/site-packages/vllm/transformers_utils/tokenizers/mistral.py'
+t = open(p).read()
+old = '''    assert (
+            skip_special_tokens
+        ), "skip_special_tokens=False is not supported for Mistral tokenizers."'''
+t = t.replace(old, '    skip_special_tokens = True  # patched: force True for compat')
+open(p, 'w').write(t)
+print('Patched mistral.py: allow skip_special_tokens=False')
 PATCH
 
 echo "=========================================="
