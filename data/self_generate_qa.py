@@ -40,6 +40,8 @@ MODEL_CTX_LEN = {
     "google/gemma-2-9b-it": 8192,
     # qwen 4b has 256k ctx length but using lower max lengths is faster
     "Qwen/Qwen3-4B-Instruct-2507": 2**13 + 2**12,
+    # ministral 3b has 256k ctx length, using practical limit for data generation
+    "mistralai/Ministral-3-3B-Instruct-2512": 2**13 + 2**12,
 }
 
 

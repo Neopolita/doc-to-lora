@@ -20,6 +20,12 @@ CTX_AFFIXES = {
         # `<|im_end|>\n<|im_start|>assistant\n`
         "suffix": [151645, 198, 151644, 77091, 198],
     },
+    "mistralai/Ministral-3-3B-Instruct-2512": {
+        # `<s>[INST]` — Tekken tokenizer, no whitespace between control tokens
+        "prefix": [1, 3],
+        # `[/INST]`
+        "suffix": [4],
+    },
 }
 
 

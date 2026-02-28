@@ -400,6 +400,19 @@ def main():
     )
     logger.info(f"Training run finished and saved to {output_dir}")
 
+    # Push to HF Hub if configured (for ephemeral cloud jobs)
+    hf_push_repo = os.getenv("HF_PUSH_REPO")
+    if hf_push_repo and LOCAL_RANK == 0:
+        from huggingface_hub import HfApi
+        api = HfApi()
+        api.create_repo(hf_push_repo, repo_type="model", exist_ok=True)
+        api.upload_folder(
+            repo_id=hf_push_repo,
+            folder_path=output_dir,
+            commit_message=f"Training run {run_name}",
+        )
+        logger.info(f"Model pushed to https://huggingface.co/{hf_push_repo}")
+
 
 if __name__ == "__main__":
     os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
