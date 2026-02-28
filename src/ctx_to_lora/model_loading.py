@@ -65,15 +65,29 @@ def get_tokenizer(
     if tokenizer_kwargs is None:
         tokenizer_kwargs = {}
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name_or_path,
-        add_bos_tokens=False,
-        add_eos_tokens=False,
-        padding_side=padding_side,
-        truncation_side=truncation_side,
-        trust_remote_code=True,
-        **tokenizer_kwargs,
-    )
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name_or_path,
+            add_bos_tokens=False,
+            add_eos_tokens=False,
+            padding_side=padding_side,
+            truncation_side=truncation_side,
+            trust_remote_code=True,
+            **tokenizer_kwargs,
+        )
+    except ValueError:
+        # Fallback for models whose tokenizer class isn't in this transformers version
+        # (e.g. Ministral-3-3B uses TokenizersBackend, unknown to transformers 4.51.3)
+        from transformers import PreTrainedTokenizerFast
+        tokenizer = PreTrainedTokenizerFast.from_pretrained(
+            model_name_or_path,
+            add_bos_tokens=False,
+            add_eos_tokens=False,
+            padding_side=padding_side,
+            truncation_side=truncation_side,
+            trust_remote_code=True,
+            **tokenizer_kwargs,
+        )
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
