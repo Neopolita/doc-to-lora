@@ -11,7 +11,7 @@ REPO_URL="https://github.com/Neopolita/doc-to-lora"
 
 echo "Launching dry run..."
 hf jobs run \
-    --namespace mistral-hackaton-2026 \
+    --namespace neopolita \
     --flavor a100-large \
     --timeout 1h \
     --secrets WANDB_API_KEY \
