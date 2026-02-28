@@ -4,29 +4,51 @@
 
 Porting [Sakana AI's Doc-to-LoRA](https://pub.sakana.ai/doc-to-lora/) to **Ministral-3-3B-Instruct-2512** — a hypernetwork that converts documents into LoRA adapters in sub-second time, enabling knowledge injection without context window overhead.
 
+**Trained model**: [neopolita/doc-to-lora-ministral-3b-2512](https://huggingface.co/neopolita/doc-to-lora-ministral-3b-2512) | **W&B Run**: <!-- TODO: Add wandb run link --> | **Base model**: [mistralai/Ministral-3-3B-Instruct-2512](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512)
+
+### Used by: Thoth Agent
+
+The trained hypernetwork powers [**Thoth**](https://github.com/Neopolita/thoth), also built for the [Mistral AI Worldwide Hackathon 2026](https://worldwide-hackathon.mistral.ai/). Thoth is an agent that uses Doc-to-LoRA to alleviate context size pressure — instead of feeding entire documents into the context window, it converts them into LoRA adapters on the fly, freeing up the context for reasoning and conversation while retaining document knowledge in the model's weights. Thoth includes an MLX-based inference implementation, enabling the trained hypernetwork to run natively on Apple Silicon Macs.
+
+### Results
+
+<!-- TODO: Add wandb loss curve screenshot -->
+![Training Loss](placeholder_training_loss.png)
+
+<!-- TODO: Fill in after training completes -->
+| Metric | Value |
+|--------|-------|
+| Final KL Loss | `TODO` |
+| Final Train Loss | `TODO` |
+| Training Steps | `TODO` |
+| Training Time | `TODO` |
+| Hardware | 4x NVIDIA A100 80GB |
+
+---
+
 ## What is Doc-to-LoRA?
 
-Doc-to-LoRA is a Perceiver-based hypernetwork (~309M parameters) that reads a document and generates a rank-8 LoRA adapter for a target LLM. Instead of stuffing documents into the context window at inference time, the model "absorbs" the document into its weights via the generated LoRA.
+Doc-to-LoRA is a Perceiver-based hypernetwork that reads a document and generates a rank-8 LoRA adapter for a target LLM. Instead of stuffing documents into the context window at inference time, the model "absorbs" the document into its weights via the generated LoRA.
 
 **Key properties:**
 - Sub-second LoRA generation from any document
 - No context window consumed at inference time
 - Composable: long documents are chunked and their LoRAs composed along the rank dimension
-- Original implementation targets Gemma-2-2B; we ported it to Ministral-3-3B
+- Original implementation targets Gemma-2-2B; I ported it to Ministral-3-3B
 
-## What We Did
+## What I Did
 
 ### 1. Model Porting: Gemma-2-2B &rarr; Ministral-3-3B
 
 Ministral-3-3B-Instruct-2512 presented several compatibility challenges with the existing codebase:
 
-- **Multimodal architecture**: The model is packaged as `Mistral3ForConditionalGeneration` (Pixtral-like), but we only need the text-only `MistralForCausalLM`. We implemented an extraction pipeline that loads the multimodal model, saves the language model to a temp directory, and reloads it with flash attention + optional quantization.
+- **Multimodal architecture**: The model is packaged as `Mistral3ForConditionalGeneration` (Pixtral-like), but I only need the text-only `MistralForCausalLM`. I implemented an extraction pipeline that loads the multimodal model, saves the language model to a temp directory, and reloads it with flash attention + optional quantization.
 
-- **FP8 weights**: The default checkpoint uses FP8 quantization incompatible with both vLLM 0.8.5 and transformers 4.51.3. We switched to the official BF16 variant (`Ministral-3-3B-Instruct-2512-BF16`) using a `BF16_VARIANTS` mapping that keeps the original model name as the logical identifier throughout the codebase.
+- **FP8 weights**: The default checkpoint uses FP8 quantization incompatible with both vLLM 0.8.5 and transformers 4.51.3. I switched to the official BF16 variant (`Ministral-3-3B-Instruct-2512-BF16`) using a `BF16_VARIANTS` mapping that keeps the original model name as the logical identifier throughout the codebase.
 
-- **Tekken v13 tokenizer**: Required upgrading `mistral-common>=1.9.0` and patching vLLM 0.8.5's Mistral tokenizer assertions. We also created a custom chat template for the model.
+- **Tekken v13 tokenizer**: Required upgrading `mistral-common>=1.9.0` and patching vLLM 0.8.5's Mistral tokenizer assertions. I also created a custom chat template for the model.
 
-- **Config registration**: The `ministral3` model type isn't recognized by transformers 4.51.3, so we register it as a `MistralConfig` at import time.
+- **Config registration**: The `ministral3` model type isn't recognized by transformers 4.51.3, so I register it as a `MistralConfig` at import time.
 
 ### 2. Training Pipeline
 
@@ -57,24 +79,6 @@ The training uses context distillation:
 | `np.empty` logprobs arrays with uninitialized memory | Replaced with `np.zeros`/`np.full` for safe defaults |
 | vLLM 0.8.5 incompatible with Ministral-3-3B tokenizer | Runtime patches for `skip_special_tokens` assertion and unknown weight keys |
 
-## Results
-
-### Training Loss
-
-<!-- TODO: Add wandb loss curve screenshot -->
-![Training Loss](placeholder_training_loss.png)
-
-### Training Metrics
-
-<!-- TODO: Fill in after training completes -->
-| Metric | Value |
-|--------|-------|
-| Final KL Loss | `TODO` |
-| Final Train Loss | `TODO` |
-| Training Steps | `TODO` |
-| Training Time | `TODO` |
-| Hardware | 4x NVIDIA A100 80GB |
-
 ### Evaluation
 
 <!-- TODO: Fill in evaluation results -->
@@ -83,12 +87,6 @@ The training uses context distillation:
 | SQuAD | `TODO` |
 | DROP | `TODO` |
 | ROPES | `TODO` |
-
-## Model
-
-- **Trained model**: [neopolita/doc-to-lora-ministral-3b-2512](https://huggingface.co/neopolita/doc-to-lora-ministral-3b-2512)
-- **Base model**: [mistralai/Ministral-3-3B-Instruct-2512](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512)
-- **W&B Run**: <!-- TODO: Add wandb run link -->
 
 ## Repository
 
