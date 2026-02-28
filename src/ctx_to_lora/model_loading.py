@@ -11,7 +11,14 @@ from transformers import (
     AutoTokenizer,
     BitsAndBytesConfig,
     Gemma3ForConditionalGeneration,
+    MistralConfig,
 )
+from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+
+# Register ministral3 text config for transformers 4.51.3 compatibility
+# (Ministral-3-3B uses model_type="ministral3" which isn't in this version)
+if "ministral3" not in CONFIG_MAPPING:
+    CONFIG_MAPPING.register("ministral3", MistralConfig)
 
 logger = logging.getLogger()
 
