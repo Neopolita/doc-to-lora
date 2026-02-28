@@ -48,6 +48,7 @@ from ctx_to_lora.modeling.hypernet import (
     get_hypernet_config,
 )
 from ctx_to_lora.trainer import train_model
+from transformers import TrainerCallback
 from ctx_to_lora.utils import (
     compile_linear,
     extract_cli_args,
@@ -61,6 +62,29 @@ from ctx_to_lora.utils import (
 logger = logging.getLogger()
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", "0"))
+
+
+class HubCheckpointCallback(TrainerCallback):
+    """Uploads checkpoints to HF Hub on every save (for ephemeral cloud jobs)."""
+
+    def __init__(self, repo_id, output_dir):
+        self.repo_id = repo_id
+        self.output_dir = output_dir
+        from huggingface_hub import HfApi
+        self.api = HfApi()
+        self.api.create_repo(repo_id, repo_type="model", exist_ok=True)
+
+    def on_save(self, args, state, control, **kwargs):
+        if LOCAL_RANK != 0:
+            return
+        step = state.global_step
+        logger.info(f"Uploading checkpoint at step {step} to {self.repo_id}...")
+        self.api.upload_folder(
+            repo_id=self.repo_id,
+            folder_path=self.output_dir,
+            commit_message=f"Checkpoint at step {step}",
+        )
+        logger.info(f"Checkpoint uploaded to https://huggingface.co/{self.repo_id}")
 
 
 def main():
@@ -385,6 +409,12 @@ def main():
     else:
         wandb.init(mode="disabled")
 
+    # Set up HF Hub checkpoint callback for ephemeral cloud jobs
+    hf_push_repo = os.getenv("HF_PUSH_REPO")
+    callbacks = []
+    if hf_push_repo:
+        callbacks.append(HubCheckpointCallback(hf_push_repo, output_dir))
+
     train_model(
         model,
         training_args,
@@ -397,21 +427,20 @@ def main():
                 [compute_per_token_acc, compute_prefix_matching, compute_perplexity]
             ),
         ),
+        callbacks=callbacks,
     )
     logger.info(f"Training run finished and saved to {output_dir}")
 
-    # Push to HF Hub if configured (for ephemeral cloud jobs)
-    hf_push_repo = os.getenv("HF_PUSH_REPO")
+    # Final push to HF Hub (uploads the best/final model)
     if hf_push_repo and LOCAL_RANK == 0:
         from huggingface_hub import HfApi
         api = HfApi()
-        api.create_repo(hf_push_repo, repo_type="model", exist_ok=True)
         api.upload_folder(
             repo_id=hf_push_repo,
             folder_path=output_dir,
-            commit_message=f"Training run {run_name}",
+            commit_message=f"Final model from {run_name}",
         )
-        logger.info(f"Model pushed to https://huggingface.co/{hf_push_repo}")
+        logger.info(f"Final model pushed to https://huggingface.co/{hf_push_repo}")
 
 
 if __name__ == "__main__":

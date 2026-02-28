@@ -404,6 +404,7 @@ def train_model(
     val_dataset=None,
     train_collator=None,
     compute_metrics=None,
+    callbacks=None,
 ):
     checkpoint = None
     if training_args.resume_from_checkpoint is not None:
@@ -417,6 +418,7 @@ def train_model(
         eval_dataset=val_dataset,
         data_collator=train_collator,
         compute_metrics=compute_metrics,
+        callbacks=callbacks,
     )
 
     is_modulated_model = isinstance(model, ModulatedPretrainedModel)

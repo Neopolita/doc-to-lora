@@ -24,11 +24,21 @@ echo "=========================================="
 
 bash install.sh
 
-# Upgrade vLLM + mistral_common for Ministral-3-3B support:
-#   - vLLM 0.8.5 can't load Ministral-3-3B's FP8 weights (fake_quantizer keys)
-#   - mistral_common <1.9.0 doesn't support tokenizer v13
-# Use pip directly to bypass uv's lockfile constraints
-.venv/bin/pip install "vllm>=0.9" "mistral-common>=1.9.0"
+# Upgrade mistral_common for Ministral-3-3B tokenizer v13 support
+# Use pip directly to bypass uv's lockfile constraints (uv run re-syncs)
+.venv/bin/pip install "mistral-common>=1.9.0" --force-reinstall --no-deps
+.venv/bin/pip install pydantic-extra-types
+
+# Patch vLLM 0.8.5's llama weight loader to skip fake_quantizer keys
+# (Ministral-3-3B FP8 checkpoint has calibration weights vLLM doesn't know about)
+.venv/bin/python -c "
+p = '.venv/lib/python3.10/site-packages/vllm/model_executor/models/llama.py'
+t = open(p).read()
+old = '            param = params_dict[name]'
+new = '            if name not in params_dict:\n                continue\n            param = params_dict[name]'
+open(p, 'w').write(t.replace(old, new, 1))
+print('Patched vLLM llama.py to skip unknown weight keys')
+"
 
 echo "=========================================="
 echo "Phase 1: Base data setup"
