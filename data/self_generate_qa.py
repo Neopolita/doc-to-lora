@@ -245,6 +245,8 @@ def self_generate(
 
     if args.debug:
         ds = ds.take(10)
+    elif args.max_samples:
+        ds = ds.take(args.max_samples)
 
     ds = ds.filter(filter_none, batched=False, num_proc=8)
 
@@ -541,6 +543,12 @@ def parse_args() -> argparse.Namespace:
         "--debug",
         action="store_true",
         help="Enable debug mode (process only 10 samples)",
+    )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Limit the number of samples to process per dataset",
     )
 
     # Either config file OR ds_names + split

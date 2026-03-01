@@ -95,13 +95,13 @@ echo "Generating self-gen responses for compact datasets (10% subset)..."
     --vllm_model "${MODEL}" \
     --vllm_model_path "${BF16_MODEL}" \
     --ds_names squad_compact ropes_compact drop_compact \
-    --split "train[:10%]" --closed_qa_prob 1.0
+    --split train --closed_qa_prob 1.0 --max_samples 1500
 
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --vllm_model_path "${BF16_MODEL}" \
     --ds_names pwc_compact \
-    --split "train[:10%]" --closed_qa_prob 0.0
+    --split train --closed_qa_prob 0.0 --max_samples 500
 
 echo "=========================================="
 echo "Phase 3: Training (with auto-push to HF Hub)"
