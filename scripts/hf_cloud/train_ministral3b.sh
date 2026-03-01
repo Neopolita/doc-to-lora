@@ -90,18 +90,18 @@ echo "=========================================="
 echo "Phase 2: Self-generated response data"
 echo "=========================================="
 
-echo "Generating self-gen responses for compact datasets..."
+echo "Generating self-gen responses for compact datasets (10% subset)..."
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --vllm_model_path "${BF16_MODEL}" \
     --ds_names squad_compact ropes_compact drop_compact \
-    --split train --closed_qa_prob 1.0
+    --split "train[:10%]" --closed_qa_prob 1.0
 
 .venv/bin/python data/self_generate_qa.py \
     --vllm_model "${MODEL}" \
     --vllm_model_path "${BF16_MODEL}" \
     --ds_names pwc_compact \
-    --split train --closed_qa_prob 0.0
+    --split "train[:10%]" --closed_qa_prob 0.0
 
 echo "=========================================="
 echo "Phase 3: Training (with auto-push to HF Hub)"
@@ -120,10 +120,10 @@ export HF_PUSH_REPO="${HF_REPO}"
     --target_modules=down_proj --lora_r=8 \
     --eval_strategy=no --max_qas_len=2048 --max_qas_per_sample=1 \
     --per_rank_gen=True --per_layer_processing=True --gen_lora_l1_reg_coef=0.1 \
-    --max_steps=8000 --gradient_accumulation_steps=8 --max_packed_inp_len=4096 \
-    --max_packed_ctx_len=4096 --use_per_ctx_average_loss=True --use_kl_loss=True \
+    --max_steps=4000 --gradient_accumulation_steps=8 --max_packed_inp_len=2048 \
+    --max_packed_ctx_len=2048 --use_per_ctx_average_loss=True --use_kl_loss=True \
     --quantize_ctx_encoder=True \
-    --save_steps=500 --save_total_limit=5
+    --save_steps=250 --save_total_limit=5
 
 echo "=========================================="
 echo "Done! Model pushed to https://huggingface.co/${HF_REPO}"
