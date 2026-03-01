@@ -69,7 +69,7 @@ Doc-to-LoRA is complementary to RAG -- it works best for documents that are quer
 
 ## Results
 
-**W&B Report**: [Training Report](https://wandb.ai/neopolita/doc-to-lora/reports/Doc-to-LoRA-Ministral-3-3B-Hypernetwork--VmlldzoxNjA3MTU0MQ?accessToken=l7i7okr73q08opoazc563pl0h5uopixry7f6a680y9zwqno7pr4lw641cjow33rr)
+**W&B Report**: [Training Report](https://api.wandb.ai/links/neopolita/jkoyalnh)
 
 ### Training Charts
 
