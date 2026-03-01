@@ -34,3 +34,4 @@ eval_results/
 .ruff_cache/
 TEMP.md
 CLAUDE.md
+.DS_Store

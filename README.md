@@ -4,7 +4,7 @@
 
 Porting [Sakana AI's Doc-to-LoRA](https://pub.sakana.ai/doc-to-lora/) to **Ministral-3-3B-Instruct-2512** — a hypernetwork that converts documents into LoRA adapters in sub-second time, enabling knowledge injection without context window overhead.
 
-**Trained model**: [neopolita/doc-to-lora-ministral-3b-2512](https://huggingface.co/neopolita/doc-to-lora-ministral-3b-2512) | **W&B Run**: <!-- TODO: Add wandb run link --> | **Base model**: [mistralai/Ministral-3-3B-Instruct-2512](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512)
+**Trained model**: [neopolita/doc-to-lora-ministral-3b-2512](https://huggingface.co/neopolita/doc-to-lora-ministral-3b-2512) | **W&B Report**: [Training Report](https://wandb.ai/neopolita/doc-to-lora/reports/Doc-to-LoRA-Ministral-3-3B-Hypernetwork--VmlldzoxNjA3MTU0MQ?accessToken=l7i7okr73q08opoazc563pl0h5uopixry7f6a680y9zwqno7pr4lw641cjow33rr) | **Base model**: [mistralai/Ministral-3-3B-Instruct-2512](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512)
 
 ### Used by: Thoth Agent
 
@@ -12,17 +12,15 @@ The trained hypernetwork powers [**Thoth**](https://github.com/Neopolita/thoth),
 
 ### Results
 
-<!-- TODO: Add wandb loss curve screenshot -->
-![Training Loss](placeholder_training_loss.png)
+![Training Run](images/run.png)
 
-<!-- TODO: Fill in after training completes -->
-| Metric | Value |
-|--------|-------|
-| Final KL Loss | `TODO` |
-| Final Train Loss | `TODO` |
-| Training Steps | `TODO` |
-| Training Time | `TODO` |
-| Hardware | 4x NVIDIA A100 80GB |
+| Metric           | Value               |
+| ---------------- | ------------------- |
+| Final KL Loss    | 0.824               |
+| Final Train Loss | 0.744               |
+| Training Steps   | 4,000               |
+| Training Time    | ~8.2 hours          |
+| Hardware         | 4x NVIDIA A100 80GB |
 
 ---
 
@@ -35,6 +33,34 @@ Doc-to-LoRA is a Perceiver-based hypernetwork that reads a document and generate
 - No context window consumed at inference time
 - Composable: long documents are chunked and their LoRAs composed along the rank dimension
 - Original implementation targets Gemma-2-2B; I ported it to Ministral-3-3B
+
+### Architecture
+
+```mermaid
+graph LR
+    Doc["Document"] --> Tok["Tokenizer"]
+    Tok --> Enc["Frozen Ministral-3-3B<br/>(Extract Activations)"]
+    Enc --> Perc["Perceiver Hypernetwork<br/>(~309M params)"]
+    Perc --> LoRA["Rank-8 LoRA<br/>(down_proj layers)"]
+    LoRA --> LLM["Ministral-3-3B<br/>+ LoRA"]
+    Q["Question"] --> LLM
+    LLM --> A["Answer"]
+
+    style Perc fill:#f9a825,stroke:#f57f17,color:#000
+    style LoRA fill:#66bb6a,stroke:#388e3c,color:#000
+```
+
+### Why Not RAG?
+
+|                     | Doc-to-LoRA                                       | RAG                                       |
+| ------------------- | ------------------------------------------------- | ----------------------------------------- |
+| **Context window**  | Free -- knowledge lives in LoRA weights           | Consumed by retrieved chunks              |
+| **Latency**         | Sub-second LoRA generation, then normal inference | Retrieval + reranking at every query      |
+| **Knowledge depth** | Full document absorbed into weights               | Limited to retrieved snippets             |
+| **Composability**   | Multiple document LoRAs can be composed           | Context window limits how many chunks fit |
+| **Trade-off**       | Requires training a hypernetwork                  | Works out of the box with any LLM         |
+
+Doc-to-LoRA is complementary to RAG -- it works best for documents that are queried repeatedly, where the upfront cost of LoRA generation pays off across many queries.
 
 ## What I Did
 
@@ -71,22 +97,13 @@ The training uses context distillation:
 
 ### 3. Key Technical Challenges Solved
 
-| Challenge | Solution |
-|-----------|----------|
-| FP8 weights produce garbage text | Switched to official BF16 variant |
+| Challenge                                             | Solution                                                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| FP8 weights produce garbage text                      | Switched to official BF16 variant                                                        |
 | PixtralVisionModel rejects flash_attention_2 and sdpa | Load multimodal on CPU with eager, extract language model, reload with flash_attention_2 |
-| BitsAndBytes NF4 quantized state_dict size mismatch | Save/reload via temp directory instead of direct state_dict transfer |
-| `np.empty` logprobs arrays with uninitialized memory | Replaced with `np.zeros`/`np.full` for safe defaults |
-| vLLM 0.8.5 incompatible with Ministral-3-3B tokenizer | Runtime patches for `skip_special_tokens` assertion and unknown weight keys |
-
-### Evaluation
-
-<!-- TODO: Fill in evaluation results -->
-| Benchmark | Score |
-|-----------|-------|
-| SQuAD | `TODO` |
-| DROP | `TODO` |
-| ROPES | `TODO` |
+| BitsAndBytes NF4 quantized state_dict size mismatch   | Save/reload via temp directory instead of direct state_dict transfer                     |
+| `np.empty` logprobs arrays with uninitialized memory  | Replaced with `np.zeros`/`np.full` for safe defaults                                     |
+| vLLM 0.8.5 incompatible with Ministral-3-3B tokenizer | Runtime patches for `skip_special_tokens` assertion and unknown weight keys              |
 
 ## Repository
 
@@ -99,7 +116,28 @@ Key modified/added files:
 - `chat_templates/mistralai/Ministral-3-3B-Instruct-2512.jinja` — Chat template
 - `scripts/hf_cloud/` — HuggingFace Jobs training scripts
 
+## Limitations
+
+- **Smaller training set**: Trained on a 10% subset of 4 compact QA datasets, without the FineWeb QA dataset used in the original paper. This may limit generalization to out-of-domain documents.
+- **Fewer training steps**: 4,000 steps vs ~20,000 in the original Gemma-2-2B training. Longer training with more data would likely improve quality.
+- **Single-document focus**: Each LoRA is generated from a single document chunk (up to 2,048 tokens). Very long documents require chunking and LoRA composition, which was not extensively evaluated.
+
+## License
+
+This repository is a fork of [SakanaAI/doc-to-lora](https://github.com/SakanaAI/doc-to-lora), which does not specify a license. Please refer to Sakana AI for licensing terms regarding the original code and methodology.
+
 ## References
 
 - [Doc-to-LoRA: Sub-Second Knowledge Injection into LLMs via Document-to-LoRA Translation](https://pub.sakana.ai/doc-to-lora/) — Sakana AI, February 2026
 - [Ministral-3-3B-Instruct-2512](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512) — Mistral AI
+
+## Citation
+
+```bibtex
+@article{doc-to-lora,
+  title={Doc-to-LoRA: Sub-Second Knowledge Injection into LLMs via Document-to-LoRA Translation},
+  author={Sakana AI},
+  year={2026},
+  url={https://pub.sakana.ai/doc-to-lora/}
+}
+```
