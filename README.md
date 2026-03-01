@@ -135,7 +135,7 @@ This repository is a fork of [SakanaAI/doc-to-lora](https://github.com/SakanaAI/
 
 ```bibtex
 @article{doc-to-lora,
-  title={Doc-to-LoRA: Sub-Second Knowledge Injection into LLMs via Document-to-LoRA Translation},
+  title={Instant LLM Updates with Doc-to-LoRA and Text-to-LoRA},
   author={Sakana AI},
   year={2026},
   url={https://pub.sakana.ai/doc-to-lora/}
