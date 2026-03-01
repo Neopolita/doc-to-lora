@@ -246,7 +246,7 @@ def self_generate(
     if args.debug:
         ds = ds.take(10)
     elif args.max_samples:
-        ds = ds.take(args.max_samples)
+        ds = ds.take(min(args.max_samples, len(ds)))
 
     ds = ds.filter(filter_none, batched=False, num_proc=8)
 
